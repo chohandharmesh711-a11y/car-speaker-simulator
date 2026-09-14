@@ -1,14 +1,15 @@
-// Main Application Logic
+// Main Application Logic - Indian Car Audio Simulator
 
-class CarSpeakerSimulator {
+class IndianCarAudioSimulator {
     constructor() {
-        this.audioProcessor = new AudioProcessor();
+        this.audioProcessor = new CarAudioProcessor();
         this.currentAudioBuffer = null;
         this.isPlaying = false;
         this.startTime = 0;
         this.pausedTime = 0;
         this.animationId = null;
-        this.currentFile = null;
+        this.selectedCar = null;
+        this.selectedSeat = null;
 
         this.initializeUI();
         this.attachEventListeners();
@@ -21,14 +22,8 @@ class CarSpeakerSimulator {
             audioFile: document.getElementById('audioFile'),
             uploadArea: document.getElementById('uploadArea'),
             fileInfo: document.getElementById('fileInfo'),
-            speakerType: document.getElementById('speakerType'),
-            bass: document.getElementById('bass'),
-            bassValue: document.getElementById('bassValue'),
-            treble: document.getElementById('treble'),
-            trebleValue: document.getElementById('trebleValue'),
-            volume: document.getElementById('volume'),
-            volumeValue: document.getElementById('volumeValue'),
-            spatialAudio: document.getElementById('spatialAudio'),
+            carCards: document.querySelectorAll('.car-card'),
+            seats: document.querySelectorAll('.seat, .seat-center'),
             playBtn: document.getElementById('playBtn'),
             pauseBtn: document.getElementById('pauseBtn'),
             stopBtn: document.getElementById('stopBtn'),
@@ -37,7 +32,9 @@ class CarSpeakerSimulator {
             currentTime: document.getElementById('currentTime'),
             duration: document.getElementById('duration'),
             visualizer: document.getElementById('visualizer'),
-            presetBtns: document.querySelectorAll('.btn-preset')
+            carInfo: document.getElementById('carInfo'),
+            seatInfo: document.getElementById('seatInfo'),
+            seatLabel: document.getElementById('seat-label')
         };
     }
 
@@ -55,28 +52,17 @@ class CarSpeakerSimulator {
         this.elements.uploadArea.addEventListener('dragleave', () => this.handleDragLeave());
         this.elements.uploadArea.addEventListener('drop', (e) => this.handleDrop(e));
 
-        // Controls
-        this.elements.speakerType.addEventListener('change', (e) => {
-            this.audioProcessor.changeSpeakerType(e.target.value);
+        // Car selection
+        this.elements.carCards.forEach(card => {
+            card.addEventListener('click', (e) => this.selectCar(e.currentTarget.dataset.car, e.currentTarget));
         });
 
-        this.elements.bass.addEventListener('input', (e) => {
-            this.audioProcessor.setBass(e.target.value);
-            this.elements.bassValue.textContent = e.target.value + '%';
-        });
-
-        this.elements.treble.addEventListener('input', (e) => {
-            this.audioProcessor.setTreble(e.target.value);
-            this.elements.trebleValue.textContent = e.target.value + '%';
-        });
-
-        this.elements.volume.addEventListener('input', (e) => {
-            this.audioProcessor.setVolume(e.target.value);
-            this.elements.volumeValue.textContent = e.target.value + '%';
-        });
-
-        this.elements.spatialAudio.addEventListener('change', (e) => {
-            this.audioProcessor.setSpatialAudio(e.target.checked);
+        // Seat selection
+        this.elements.seats.forEach(seat => {
+            seat.addEventListener('click', (e) => {
+                const seatPosition = e.currentTarget.dataset.seat;
+                this.selectSeat(seatPosition, e.currentTarget);
+            });
         });
 
         // Player controls
@@ -86,11 +72,6 @@ class CarSpeakerSimulator {
 
         // Progress bar
         this.elements.progressBar.addEventListener('click', (e) => this.seek(e));
-
-        // EQ Presets
-        this.elements.presetBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => this.applyPreset(e.target.dataset.preset, e.target));
-        });
     }
 
     // Handle file selection
@@ -126,11 +107,10 @@ class CarSpeakerSimulator {
     async loadAudio(file) {
         try {
             this.stop();
-            this.currentFile = file;
             this.currentAudioBuffer = await this.audioProcessor.loadAudioFile(file);
 
             // Update UI
-            this.elements.fileInfo.textContent = `✓ Loaded: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+            this.elements.fileInfo.textContent = `✓ Loaded: ${file.name}`;
             this.elements.fileInfo.classList.add('show');
 
             // Enable controls
@@ -140,7 +120,7 @@ class CarSpeakerSimulator {
 
             // Update duration
             const duration = this.currentAudioBuffer.duration;
-            this.elements.duration.textContent = AudioProcessor.formatTime(duration);
+            this.elements.duration.textContent = CarAudioProcessor.formatTime(duration);
 
             // Reset progress
             this.elements.progress.style.width = '0%';
@@ -155,14 +135,60 @@ class CarSpeakerSimulator {
         }
     }
 
+    // Select car
+    selectCar(carName, element) {
+        // Remove active state from all cars
+        this.elements.carCards.forEach(card => card.classList.remove('active'));
+        element.classList.add('active');
+
+        this.selectedCar = carName;
+        const carProfile = CAR_PROFILES[carName];
+        this.elements.carInfo.textContent = `🚗 ${carProfile.name} - ${carProfile.type}`;
+
+        // If playing, restart with new car profile
+        if (this.isPlaying && this.selectedSeat) {
+            this.stop();
+            this.play();
+        }
+    }
+
+    // Select seat
+    selectSeat(seatPosition, element) {
+        // Remove active state from all seats
+        this.elements.seats.forEach(seat => seat.classList.remove('active'));
+        element.classList.add('active');
+
+        this.selectedSeat = seatPosition;
+
+        const seatLabels = {
+            'front-left': '👤 Front Left (Driver)',
+            'front-right': '👤 Front Right (Passenger)',
+            'rear-left': '👤 Rear Left',
+            'rear-right': '👤 Rear Right',
+            'center': '👤 Center'
+        };
+
+        this.elements.seatLabel.textContent = seatLabels[seatPosition] || 'Seat selected';
+        this.elements.seatInfo.textContent = seatLabels[seatPosition];
+
+        // If playing, restart with new seat position
+        if (this.isPlaying && this.selectedCar) {
+            this.stop();
+            this.play();
+        }
+    }
+
     // Play audio
     play() {
-        if (!this.currentAudioBuffer) return;
+        if (!this.currentAudioBuffer || !this.selectedCar || !this.selectedSeat) {
+            alert('Please select a car, seat, and upload a song first!');
+            return;
+        }
 
         if (!this.isPlaying) {
-            this.audioProcessor.playAudio(this.currentAudioBuffer);
+            this.audioProcessor.playAudio(this.currentAudioBuffer, this.selectedCar, this.selectedSeat);
             this.isPlaying = true;
-            this.startTime = this.audioProcessor.audioContext.currentTime - this.pausedTime;
+            this.startTime = this.audioProcessor.getCurrentTime() - this.pausedTime;
             this.updateProgress();
             this.elements.playBtn.disabled = true;
             this.elements.pauseBtn.disabled = false;
@@ -207,7 +233,7 @@ class CarSpeakerSimulator {
 
             const progress = (currentTime / duration) * 100;
             this.elements.progress.style.width = progress + '%';
-            this.elements.currentTime.textContent = AudioProcessor.formatTime(currentTime);
+            this.elements.currentTime.textContent = CarAudioProcessor.formatTime(currentTime);
 
             this.animationId = requestAnimationFrame(this.updateProgress);
         }
@@ -222,61 +248,11 @@ class CarSpeakerSimulator {
         this.pausedTime = percentage * this.currentAudioBuffer.duration;
 
         this.elements.progress.style.width = (percentage * 100) + '%';
-        this.elements.currentTime.textContent = AudioProcessor.formatTime(this.pausedTime);
+        this.elements.currentTime.textContent = CarAudioProcessor.formatTime(this.pausedTime);
 
         if (this.isPlaying) {
             this.pause();
             this.play();
-        }
-    }
-
-    // Apply EQ preset
-    applyPreset(preset, button) {
-        // Remove active state from all buttons
-        this.elements.presetBtns.forEach(btn => btn.classList.remove('active'));
-        button.classList.add('active');
-
-        switch (preset) {
-            case 'flat':
-                this.elements.bass.value = 50;
-                this.elements.treble.value = 50;
-                this.audioProcessor.setBass(50);
-                this.audioProcessor.setTreble(50);
-                this.elements.bassValue.textContent = '50%';
-                this.elements.trebleValue.textContent = '50%';
-                break;
-            case 'bass-boost':
-                this.elements.bass.value = 75;
-                this.elements.treble.value = 50;
-                this.audioProcessor.setBass(75);
-                this.audioProcessor.setTreble(50);
-                this.elements.bassValue.textContent = '75%';
-                this.elements.trebleValue.textContent = '50%';
-                break;
-            case 'treble-boost':
-                this.elements.bass.value = 50;
-                this.elements.treble.value = 75;
-                this.audioProcessor.setBass(50);
-                this.audioProcessor.setTreble(75);
-                this.elements.bassValue.textContent = '50%';
-                this.elements.trebleValue.textContent = '75%';
-                break;
-            case 'balanced':
-                this.elements.bass.value = 55;
-                this.elements.treble.value = 55;
-                this.audioProcessor.setBass(55);
-                this.audioProcessor.setTreble(55);
-                this.elements.bassValue.textContent = '55%';
-                this.elements.trebleValue.textContent = '55%';
-                break;
-            case 'heavy-bass':
-                this.elements.bass.value = 90;
-                this.elements.treble.value = 40;
-                this.audioProcessor.setBass(90);
-                this.audioProcessor.setTreble(40);
-                this.elements.bassValue.textContent = '90%';
-                this.elements.trebleValue.textContent = '40%';
-                break;
         }
     }
 
@@ -308,9 +284,7 @@ class CarSpeakerSimulator {
 
             for (let i = 0; i < bufferLength; i++) {
                 const barHeight = (dataArray[i] / 255) * canvas.height;
-
                 ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-
                 x += barWidth + 1;
             }
         };
@@ -319,7 +293,7 @@ class CarSpeakerSimulator {
     }
 }
 
-// Initialize app when DOM is ready
+// Initialize app
 document.addEventListener('DOMContentLoaded', () => {
-    new CarSpeakerSimulator();
+    new IndianCarAudioSimulator();
 });
