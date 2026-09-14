@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Speaker Simulator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎵 Car Speaker Simulator</h1>
+            <p>Hear how your songs sound through car speakers</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Upload Section -->
+            <div class="section upload-section">
+                <h2>Upload Your Song</h2>
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" id="audioFile" accept="audio/*" style="display: none;">
+                    <div class="upload-content">
+                        <p>📁 Drag and drop your audio file here</p>
+                        <p>or</p>
+                        <button class="btn-primary" id="uploadBtn">Choose File</button>
+                    </div>
+                </div>
+                <p class="file-info" id="fileInfo"></p>
+            </div>
+
+            <!-- Controls Section -->
+            <div class="section controls-section">
+                <h2>Speaker Settings</h2>
+                
+                <div class="control-group">
+                    <label for="speakerType">Speaker Type:</label>
+                    <select id="speakerType">
+                        <option value="compact">Compact Car</option>
+                        <option value="sedan">Sedan</option>
+                        <option value="suv">SUV</option>
+                        <option value="luxury">Luxury Car</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="bass">Bass Level:</label>
+                    <input type="range" id="bass" min="0" max="100" value="50">
+                    <span id="bassValue">50%</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="treble">Treble Level:</label>
+                    <input type="range" id="treble" min="0" max="100" value="50">
+                    <span id="trebleValue">50%</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="volume">Master Volume:</label>
+                    <input type="range" id="volume" min="0" max="100" value="70">
+                    <span id="volumeValue">70%</span>
+                </div>
+
+                <div class="control-group">
+                    <label>
+                        <input type="checkbox" id="spatialAudio" checked>
+                        Enable Spatial Audio
+                    </label>
+                </div>
+            </div>
+
+            <!-- Player Section -->
+            <div class="section player-section">
+                <h2>Player</h2>
+                <div class="player-controls">
+                    <button class="btn-control" id="playBtn" disabled>▶ Play</button>
+                    <button class="btn-control" id="pauseBtn" disabled>⏸ Pause</button>
+                    <button class="btn-control" id="stopBtn" disabled>⏹ Stop</button>
+                </div>
+
+                <div class="progress-bar">
+                    <div class="progress" id="progress"></div>
+                </div>
+                <div class="time-display">
+                    <span id="currentTime">0:00</span>
+                    <span id="duration">0:00</span>
+                </div>
+
+                <div class="visualizer">
+                    <canvas id="visualizer"></canvas>
+                </div>
+            </div>
+
+            <!-- EQ Preset Section -->
+            <div class="section preset-section">
+                <h2>EQ Presets</h2>
+                <div class="preset-buttons">
+                    <button class="btn-preset" data-preset="flat">Flat</button>
+                    <button class="btn-preset" data-preset="bass-boost">Bass Boost</button>
+                    <button class="btn-preset" data-preset="treble-boost">Treble Boost</button>
+                    <button class="btn-preset" data-preset="balanced">Balanced</button>
+                    <button class="btn-preset" data-preset="heavy-bass">Heavy Bass</button>
+                </div>
+            </div>
+
+            <!-- Info Section -->
+            <div class="section info-section">
+                <h2>About</h2>
+                <p>This simulator uses impulse response technology to simulate how your music sounds through different car speaker systems. Upload any audio file and adjust the settings to hear how it would sound in different car models.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="audio-processor.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
