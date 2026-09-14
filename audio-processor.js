@@ -1,16 +1,21 @@
-// Audio Processor - Advanced car speaker simulation with DSP
+// Advanced Audio Processor with Car-Specific Acoustic Profiles
 
-class AudioProcessor {
+class CarAudioProcessor {
     constructor() {
         this.audioContext = null;
         this.analyser = null;
         this.sourceNode = null;
-        this.bassFilter = null;
-        this.trebleFilter = null;
-        this.gainNode = null;
+        this.dryGain = null;
+        this.wetGain = null;
         this.convolver = null;
+        this.bassFilter = null;
+        this.midFilter = null;
+        this.trebleFilter = null;
+        this.mainGain = null;
         this.stereoPanner = null;
         this.initialized = false;
+        this.currentCarProfile = null;
+        this.currentSeat = null;
     }
 
     // Initialize Web Audio API
@@ -19,138 +24,182 @@ class AudioProcessor {
 
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         
-        // Create nodes
-        this.gainNode = this.audioContext.createGain();
-        this.gainNode.gain.value = 0.7;
+        // Create main gain node
+        this.mainGain = this.audioContext.createGain();
+        this.mainGain.gain.value = 1.0;
 
-        // Bass filter (Low shelf)
+        // Dry/Wet mix for convolver
+        this.dryGain = this.audioContext.createGain();
+        this.dryGain.gain.value = 0.3;
+        
+        this.wetGain = this.audioContext.createGain();
+        this.wetGain.gain.value = 0.7;
+
+        // Convolver for impulse response (cabin acoustics)
+        this.convolver = this.audioContext.createConvolver();
+
+        // Bass filter (Low shelf at car's fundamental resonance frequency)
         this.bassFilter = this.audioContext.createBiquadFilter();
         this.bassFilter.type = 'lowshelf';
-        this.bassFilter.frequency.value = 200;
+        this.bassFilter.frequency.value = 100;
+        this.bassFilter.Q.value = 0.7;
         this.bassFilter.gain.value = 0;
+
+        // Mid filter (Peaking filter)
+        this.midFilter = this.audioContext.createBiquadFilter();
+        this.midFilter.type = 'peaking';
+        this.midFilter.frequency.value = 1000;
+        this.midFilter.Q.value = 1.0;
+        this.midFilter.gain.value = 0;
 
         // Treble filter (High shelf)
         this.trebleFilter = this.audioContext.createBiquadFilter();
         this.trebleFilter.type = 'highshelf';
-        this.trebleFilter.frequency.value = 3000;
+        this.trebleFilter.frequency.value = 5000;
+        this.trebleFilter.Q.value = 0.7;
         this.trebleFilter.gain.value = 0;
 
-        // Convolver for impulse response
-        this.convolver = this.audioContext.createConvolver();
-
-        // Stereo panning
+        // Stereo panner for speaker positioning
         this.stereoPanner = this.audioContext.createStereoPanner();
 
         // Analyser for visualization
         this.analyser = this.audioContext.createAnalyser();
         this.analyser.fftSize = 256;
 
-        // Connect nodes: source -> convolver -> bass -> treble -> panner -> gain -> analyser -> destination
+        // Audio graph:
+        // Source -> [Dry path + Wet path (Convolver)] -> EQ filters -> Panner -> Main Gain -> Analyser -> Output
+        
         this.convolver.connect(this.bassFilter);
-        this.bassFilter.connect(this.trebleFilter);
+        this.bassFilter.connect(this.midFilter);
+        this.midFilter.connect(this.trebleFilter);
         this.trebleFilter.connect(this.stereoPanner);
-        this.stereoPanner.connect(this.gainNode);
-        this.gainNode.connect(this.analyser);
+        this.stereoPanner.connect(this.mainGain);
+        this.mainGain.connect(this.analyser);
         this.analyser.connect(this.audioContext.destination);
 
-        // Load impulse response
-        await this.loadImpulseResponse('compact');
+        // Load default impulse response
+        await this.loadImpulseResponse('swift', 'front-left');
 
         this.initialized = true;
     }
 
-    // Load impulse response based on speaker type
-    async loadImpulseResponse(speakerType) {
+    // Load impulse response for specific car
+    async loadImpulseResponse(carName, seatPosition) {
         try {
-            // Create synthetic impulse response for different car types
-            const irData = this.generateImpulseResponse(speakerType);
+            this.currentCarProfile = CAR_PROFILES[carName];
+            this.currentSeat = seatPosition;
+            
+            if (!this.currentCarProfile) {
+                console.error('Car profile not found:', carName);
+                return;
+            }
+
+            // Generate synthetic IR based on car cabin characteristics
+            const irData = this.generateCarImpulseResponse(this.currentCarProfile);
             this.convolver.buffer = irData;
+
+            // Apply car-specific frequency adjustments
+            this.applyCarFrequencyProfile(this.currentCarProfile);
+
         } catch (error) {
             console.error('Error loading impulse response:', error);
         }
     }
 
-    // Generate synthetic impulse response based on car type
-    generateImpulseResponse(speakerType) {
+    // Generate impulse response based on car cabin acoustics
+    generateCarImpulseResponse(carProfile) {
         const sampleRate = this.audioContext.sampleRate;
-        const length = sampleRate * 2; // 2 seconds
-        const impulseBuffer = this.audioContext.createBuffer(1, length, sampleRate);
-        const data = impulseBuffer.getChannelData(0);
+        const length = Math.floor(sampleRate * carProfile.reverbTime * 2); // 2x reverb time for tail
+        const impulseBuffer = this.audioContext.createBuffer(2, length, sampleRate); // Stereo
+        const leftChannel = impulseBuffer.getChannelData(0);
+        const rightChannel = impulseBuffer.getChannelData(1);
 
-        // Generate different acoustic signatures for different car types
-        let decay = 0.5;
-        let reflections = [];
+        // Initial impulse
+        leftChannel[0] = 1.0;
+        rightChannel[0] = 0.9;
 
-        switch (speakerType) {
-            case 'compact':
-                decay = 0.4;
-                reflections = [0.1, 0.3, 0.5, 0.7];
-                break;
-            case 'sedan':
-                decay = 0.55;
-                reflections = [0.08, 0.25, 0.45, 0.65, 0.85];
-                break;
-            case 'suv':
-                decay = 0.65;
-                reflections = [0.05, 0.2, 0.4, 0.6, 0.75, 0.9];
-                break;
-            case 'luxury':
-                decay = 0.7;
-                reflections = [0.02, 0.15, 0.35, 0.55, 0.7, 0.85, 0.95];
-                break;
+        // Generate reflections based on cabin volume and geometry
+        const numReflections = Math.floor(carProfile.cabinVolume / 0.5); // More reflections for larger cabins
+        const decayRate = carProfile.reverbTime;
+
+        for (let i = 0; i < numReflections; i++) {
+            const reflectionTime = (i + 1) * (length / numReflections);
+            const reflectionIdx = Math.floor(reflectionTime);
+
+            if (reflectionIdx < length) {
+                // Simulate multiple reflections with decreasing amplitude
+                const amplitude = Math.pow(decayRate, (i + 1) / numReflections);
+                const randomPhase = Math.random() * 2 * Math.PI;
+
+                leftChannel[reflectionIdx] += amplitude * 0.3 * Math.cos(randomPhase);
+                rightChannel[reflectionIdx] += amplitude * 0.3 * Math.sin(randomPhase);
+            }
         }
 
-        // Create initial impulse
-        data[0] = 1.0;
+        // Apply exponential decay envelope
+        const decayEnvelope = (t) => Math.pow(decayRate, t / length);
 
-        // Add reflections and decay
-        reflections.forEach(reflectionTime => {
-            const reflectionSample = Math.floor(reflectionTime * length);
-            if (reflectionSample < length) {
-                data[reflectionSample] = Math.random() * 0.3 * Math.pow(decay, reflectionTime);
-            }
-        });
-
-        // Apply exponential decay
         for (let i = 1; i < length; i++) {
-            if (data[i] === 0) {
-                data[i] = (Math.random() - 0.5) * 0.02 * Math.pow(decay, i / length);
+            const envelope = decayEnvelope(i);
+            if (leftChannel[i] === 0) {
+                leftChannel[i] = (Math.random() - 0.5) * 0.05 * envelope;
+            }
+            if (rightChannel[i] === 0) {
+                rightChannel[i] = (Math.random() - 0.5) * 0.05 * envelope;
             }
         }
 
         return impulseBuffer;
     }
 
-    // Set bass level (-40 to 40 dB)
-    setBass(value) {
-        if (this.bassFilter) {
-            this.bassFilter.gain.value = (value - 50) * 0.8; // -40 to 40
-        }
+    // Apply car-specific frequency profile
+    applyCarFrequencyProfile(carProfile) {
+        // Bass boost based on cabin volume and subwoofer configuration
+        const bassGain = (carProfile.bassResponse - 1.0) * 12; // Convert to dB
+        this.bassFilter.frequency.value = carProfile.baseFrequency;
+        this.bassFilter.gain.value = bassGain;
+
+        // Mid adjustment
+        const midGain = (carProfile.midResponse - 1.0) * 6;
+        this.midFilter.gain.value = midGain;
+
+        // Treble adjustment
+        const trebleGain = (carProfile.trebleResponse - 1.0) * 8;
+        this.trebleFilter.gain.value = trebleGain;
     }
 
-    // Set treble level (-40 to 40 dB)
-    setTreble(value) {
-        if (this.trebleFilter) {
-            this.trebleFilter.gain.value = (value - 50) * 0.8; // -40 to 40
+    // Apply speaker positioning to audio (seat-based panning and delay)
+    applySeatPositioning(carProfile, seatPosition) {
+        const seatData = carProfile.seats[seatPosition];
+        
+        if (!seatData) {
+            console.error('Seat position not found:', seatPosition);
+            return;
         }
-    }
 
-    // Set master volume (0 to 1)
-    setVolume(value) {
-        if (this.gainNode) {
-            this.gainNode.gain.value = value / 100;
-        }
-    }
+        // Calculate stereo panning based on seat position
+        let panValue = 0;
 
-    // Set spatial audio panning (-1 to 1)
-    setSpatialAudio(enabled) {
-        if (this.stereoPanner) {
-            if (enabled) {
-                this.stereoPanner.pan.value = (Math.random() - 0.5) * 0.3; // Subtle panning
-            } else {
-                this.stereoPanner.pan.value = 0;
-            }
+        if (seatPosition === 'frontLeft') {
+            panValue = -0.4; // Left side
+        } else if (seatPosition === 'frontRight') {
+            panValue = 0.4; // Right side
+        } else if (seatPosition === 'rearLeft') {
+            panValue = -0.3; // Slight left
+        } else if (seatPosition === 'rearRight') {
+            panValue = 0.3; // Slight right
+        } else if (seatPosition === 'center') {
+            panValue = 0; // Center
         }
+
+        this.stereoPanner.pan.value = panValue;
+
+        // Calculate speaker outputs based on distance
+        const speakerOutputs = calculateSpeakerOutput(carProfile, seatPosition);
+        
+        console.log('Speaker Outputs for', seatPosition, ':', speakerOutputs);
+
+        return speakerOutputs;
     }
 
     // Load audio file
@@ -166,13 +215,24 @@ class AudioProcessor {
         }
     }
 
-    // Play audio
-    playAudio(audioBuffer) {
+    // Play audio with car-specific processing
+    playAudio(audioBuffer, carName, seatPosition) {
+        // Load car profile first
+        this.loadImpulseResponse(carName, seatPosition);
+        this.applySeatPositioning(this.currentCarProfile, seatPosition);
+
         if (!this.sourceNode) {
             this.sourceNode = this.audioContext.createBufferSource();
             this.sourceNode.buffer = audioBuffer;
+            
+            // Connect through convolver
+            this.sourceNode.connect(this.dryGain);
             this.sourceNode.connect(this.convolver);
+            this.dryGain.connect(this.mainGain);
+            this.wetGain.connect(this.mainGain);
+            this.convolver.connect(this.wetGain);
         }
+
         this.sourceNode.start(0);
         return this.audioContext.currentTime;
     }
@@ -189,14 +249,9 @@ class AudioProcessor {
         }
     }
 
-    // Pause audio (resume from current position)
+    // Pause audio
     pauseAudio() {
         this.stopAudio();
-    }
-
-    // Change speaker type
-    changeSpeakerType(type) {
-        this.loadImpulseResponse(type);
     }
 
     // Get analyser node for visualization
@@ -209,6 +264,17 @@ class AudioProcessor {
         return this.audioContext ? this.audioContext.currentTime : 0;
     }
 
+    // Get car info
+    getCarInfo() {
+        if (!this.currentCarProfile) return null;
+        return {
+            name: this.currentCarProfile.name,
+            type: this.currentCarProfile.type,
+            cabinVolume: this.currentCarProfile.cabinVolume,
+            reverbTime: this.currentCarProfile.reverbTime
+        };
+    }
+
     // Utility: Format time to MM:SS
     static formatTime(seconds) {
         const minutes = Math.floor(seconds / 60);
@@ -217,7 +283,7 @@ class AudioProcessor {
     }
 }
 
-// Export for use in app.js
+// Export for use
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = AudioProcessor;
+    module.exports = CarAudioProcessor;
 }
