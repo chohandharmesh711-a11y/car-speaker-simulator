@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Car Speaker Simulator</title>
+    <title>Indian Car Audio Simulator</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎵 Car Speaker Simulator</h1>
-            <p>Hear how your songs sound through car speakers</p>
+            <h1>🎵 Indian Car Audio Simulator</h1>
+            <p>Experience how your music sounds in real Indian cars</p>
         </div>
 
         <div class="main-content">
@@ -20,57 +20,94 @@
                 <div class="upload-area" id="uploadArea">
                     <input type="file" id="audioFile" accept="audio/*" style="display: none;">
                     <div class="upload-content">
-                        <p>📁 Drag and drop your audio file here</p>
-                        <p>or</p>
-                        <button class="btn-primary" id="uploadBtn">Choose File</button>
+                        <p>🎵 Tap to select audio</p>
+                        <button class="btn-primary" id="uploadBtn">Choose Song</button>
                     </div>
                 </div>
                 <p class="file-info" id="fileInfo"></p>
             </div>
 
-            <!-- Controls Section -->
-            <div class="section controls-section">
-                <h2>Speaker Settings</h2>
-                
-                <div class="control-group">
-                    <label for="speakerType">Speaker Type:</label>
-                    <select id="speakerType">
-                        <option value="compact">Compact Car</option>
-                        <option value="sedan">Sedan</option>
-                        <option value="suv">SUV</option>
-                        <option value="luxury">Luxury Car</option>
-                    </select>
+            <!-- Car Selection -->
+            <div class="section car-section">
+                <h2>Select Car Model</h2>
+                <div class="car-grid">
+                    <div class="car-card" data-car="swift">
+                        <div class="car-icon">🚗</div>
+                        <div class="car-name">Maruti Swift</div>
+                        <div class="car-type">Hatchback</div>
+                    </div>
+                    <div class="car-card" data-car="alto">
+                        <div class="car-icon">🚙</div>
+                        <div class="car-name">Maruti Alto</div>
+                        <div class="car-type">Economy</div>
+                    </div>
+                    <div class="car-card" data-car="nexon">
+                        <div class="car-icon">🚕</div>
+                        <div class="car-name">Tata Nexon</div>
+                        <div class="car-type">Compact SUV</div>
+                    </div>
+                    <div class="car-card" data-car="creta">
+                        <div class="car-icon">🚐</div>
+                        <div class="car-name">Hyundai Creta</div>
+                        <div class="car-type">SUV</div>
+                    </div>
+                    <div class="car-card" data-car="xuv700">
+                        <div class="car-icon">🏎️</div>
+                        <div class="car-name">Mahindra XUV700</div>
+                        <div class="car-type">Luxury SUV</div>
+                    </div>
+                    <div class="car-card" data-car="slavia">
+                        <div class="car-icon">🚗</div>
+                        <div class="car-name">Skoda Slavia</div>
+                        <div class="car-type">Sedan</div>
+                    </div>
+                    <div class="car-card" data-car="ertiga">
+                        <div class="car-icon">🚌</div>
+                        <div class="car-name">Maruti Ertiga</div>
+                        <div class="car-type">MPV</div>
+                    </div>
                 </div>
+            </div>
 
-                <div class="control-group">
-                    <label for="bass">Bass Level:</label>
-                    <input type="range" id="bass" min="0" max="100" value="50">
-                    <span id="bassValue">50%</span>
+            <!-- Seat Selection -->
+            <div class="section seat-section">
+                <h2>Select Seat Position</h2>
+                <div class="car-diagram">
+                    <svg viewBox="0 0 400 300" class="car-svg">
+                        <!-- Car outline -->
+                        <rect x="50" y="50" width="300" height="200" fill="none" stroke="#667eea" stroke-width="2" rx="10"/>
+                        
+                        <!-- Seats -->
+                        <rect class="seat" id="seat-fl" x="80" y="80" width="70" height="60" rx="5" data-seat="front-left"/>
+                        <rect class="seat" id="seat-fr" x="250" y="80" width="70" height="60" rx="5" data-seat="front-right"/>
+                        
+                        <rect class="seat" id="seat-rl" x="80" y="170" width="70" height="60" rx="5" data-seat="rear-left"/>
+                        <rect class="seat" id="seat-rr" x="250" y="170" width="70" height="60" rx="5" data-seat="rear-right"/>
+                        
+                        <!-- Center position indicator -->
+                        <circle class="seat-center" id="seat-center" cx="200" cy="150" r="20" data-seat="center"/>
+                        
+                        <!-- Labels -->
+                        <text x="115" y="115" font-size="12" fill="#333" text-anchor="middle">FL</text>
+                        <text x="285" y="115" font-size="12" fill="#333" text-anchor="middle">FR</text>
+                        <text x="115" y="205" font-size="12" fill="#333" text-anchor="middle">RL</text>
+                        <text x="285" y="205" font-size="12" fill="#333" text-anchor="middle">RR</text>
+                        <text x="200" y="155" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">C</text>
+                    </svg>
                 </div>
-
-                <div class="control-group">
-                    <label for="treble">Treble Level:</label>
-                    <input type="range" id="treble" min="0" max="100" value="50">
-                    <span id="trebleValue">50%</span>
-                </div>
-
-                <div class="control-group">
-                    <label for="volume">Master Volume:</label>
-                    <input type="range" id="volume" min="0" max="100" value="70">
-                    <span id="volumeValue">70%</span>
-                </div>
-
-                <div class="control-group">
-                    <label>
-                        <input type="checkbox" id="spatialAudio" checked>
-                        Enable Spatial Audio
-                    </label>
+                <div class="seat-labels">
+                    <p id="seat-label">Select a seat position</p>
                 </div>
             </div>
 
             <!-- Player Section -->
             <div class="section player-section">
                 <h2>Player</h2>
+                <div class="player-info">
+                    <div id="carInfo" class="car-info">No car selected</div>
+                    <div id="seatInfo" class="seat-info">No seat selected</div>
+                </div>
+
                 <div class="player-controls">
                     <button class="btn-control" id="playBtn" disabled>▶ Play</button>
                     <button class="btn-control" id="pauseBtn" disabled>⏸ Pause</button>
@@ -90,26 +127,15 @@
                 </div>
             </div>
 
-            <!-- EQ Preset Section -->
-            <div class="section preset-section">
-                <h2>EQ Presets</h2>
-                <div class="preset-buttons">
-                    <button class="btn-preset" data-preset="flat">Flat</button>
-                    <button class="btn-preset" data-preset="bass-boost">Bass Boost</button>
-                    <button class="btn-preset" data-preset="treble-boost">Treble Boost</button>
-                    <button class="btn-preset" data-preset="balanced">Balanced</button>
-                    <button class="btn-preset" data-preset="heavy-bass">Heavy Bass</button>
-                </div>
-            </div>
-
             <!-- Info Section -->
             <div class="section info-section">
-                <h2>About</h2>
-                <p>This simulator uses impulse response technology to simulate how your music sounds through different car speaker systems. Upload any audio file and adjust the settings to hear how it would sound in different car models.</p>
+                <h2>About This Simulation</h2>
+                <p>This simulator uses scientifically-tuned acoustic profiles for real Indian cars. Each car model has been configured with accurate speaker placement, cabin acoustics, frequency response, and bass characteristics. The seat position affects how you experience the audio based on speaker distance and positioning.</p>
             </div>
         </div>
     </div>
 
+    <script src="car-data.js"></script>
     <script src="audio-processor.js"></script>
     <script src="app.js"></script>
 </body>
